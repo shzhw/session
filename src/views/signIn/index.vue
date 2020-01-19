@@ -1,7 +1,6 @@
 <template>
   <div class="sign-in-wrap">
     <div id="container"></div>
-    <div id="info">3D签到墙（使用官方demo源元素周期表修改）</div>
     <div id="menu">
       <button id="table" @click="transform(targets.table, 1000)">表格</button>
       <button id="sphere" @click="transform(targets.sphere, 2000)">球球</button>
@@ -9,7 +8,7 @@
       <button id="grid" @click="transform(targets.grid, 2000)">格子</button>
     </div>
 
-    <div class="show_info animated" style="display:none;">
+    <div class="show_info animated" v-if="newItem">
       <div class="info_my">
         <img src="./img/c.png" />
         <div class="info_mem">
@@ -25,7 +24,6 @@
 
 <script>
   /* eslint-disable no-redeclare */
-  import $ from 'jquery';
   import THREE from './TrackballControls';
   import TWEEN from '@tweenjs/tween.js';
 
@@ -35,6 +33,7 @@
   export default {
     data() {
       return {
+        newItem: null,
         personArray: [],
         targets: {
           table: [],
@@ -47,7 +46,11 @@
         renderer: null,
         controls: null,
         animateCode: 0,
-        css3DObjects: []
+        css3DObjects: [],
+        sphereVector: null,
+        sphereSpherical: null,
+        helixVector: null,
+        helixCylindrical: null
       };
     },
     computed: {
@@ -57,11 +60,11 @@
             src: item.image,
             p_x: (index % 20) + 1,
             p_y: Math.floor(index / 20) + 1
-          })
+          });
         });
       }
     },
-    mounted() {      
+    mounted() {
       for (var i = 0; i < 10; i++) {
         this.personArray.push({
           image: AIMG
@@ -69,6 +72,12 @@
       }
       this.init();
       this.animate();
+      setInterval(() => {
+        this.newItem = { image: BIMG };
+        this.personArray.push(this.newItem);
+        this.addItem(this.wallTable.length - 1);
+        console.log('----add----', this.wallTable.length);
+      }, 1e4);
     },
     methods: {
       init() {
@@ -77,10 +86,13 @@
 
         this.scene = new THREE.Scene();
 
-        this.createTableData();
-        this.createSphereData();
-        this.createHelixData();
-        this.createGridData();
+        this.sphereVector = new THREE.Vector3();
+        this.sphereSpherical = new THREE.Spherical();
+
+        this.helixVector = new THREE.Vector3();
+        this.helixCylindrical = new THREE.Cylindrical();
+
+        this.wallTable.forEach((item, index) => this.addItem(index));
 
         //渲染
         this.renderer = new THREE.CSS3DRenderer();
@@ -96,7 +108,7 @@
         this.controls.addEventListener('change', this.render);
 
         // 自动更换
-        setInterval(function() {
+        setInterval(() => {
           this.animateCode = this.animateCode >= 3 ? 0 : this.animateCode;
           ++this.animateCode;
           switch (this.animateCode) {
@@ -110,83 +122,64 @@
               this.transform(this.targets.grid, 1000);
               break;
           }
-        }, 8000);
+        }, 8e3);
 
         this.transform(this.targets.table, 2000);
       },
       createTableData() {
-        for (let i = 0; i < this.wallTable.length; i++) {
-          let element = document.createElement('div');
-          element.className = 'element';
-          element.style.backgroundColor = 'rgba(0, 127, 127,' + (Math.random() * 0.5 + 0.25) + ')';
+        let l = this.css3DObjects.length;
+        let i = l - 1;
+        // 表格需要坐标进行排序的
+        let object = new THREE.Object3D();
+        object.position.x = this.wallTable[i].p_x * 140 - 1330;
+        object.position.y = -(this.wallTable[i].p_y * 180) + 990;
 
-          let img = document.createElement('img');
-          img.src = this.wallTable[i].image;
-          element.appendChild(img);
-
-          let object3D = new THREE.CSS3DObject(element);
-          object3D.position.x = Math.random() * 4000 - 2000;
-          object3D.position.y = Math.random() * 4000 - 2000;
-          object3D.position.z = Math.random() * 4000 - 2000;
-          this.scene.add(object3D);
-          this.css3DObjects.push(object3D);
-
-          // 表格需要坐标进行排序的
-          let object = new THREE.Object3D();
-          object.position.x = this.wallTable[i].p_x * 140 - 1330;
-          object.position.y = -(this.wallTable[i].p_y * 180) + 990;
-
-          this.targets.table.push(object);
-        }
+        this.targets.table.push(object);
       },
       createSphereData() {
-        let sphereVector = new THREE.Vector3();
-        let sphereSpherical = new THREE.Spherical();
-        for (let i = 0, l = this.wallTable.length; i < l; i++) {
-          let phi = Math.acos(-1 + (2 * i) / l);
-          let theta = Math.sqrt(l * Math.PI) * phi;
+        let l = 80; // 总人数
+        let i = this.css3DObjects.length - 1;
+        let phi = Math.acos(-1 + (2 * i) / l);
+        let theta = Math.sqrt(l * Math.PI) * phi;
 
-          let object = new THREE.Object3D();
-          sphereSpherical.set(800, phi, theta);
-          object.position.setFromSpherical(sphereSpherical);
-          sphereVector.copy(object.position).multiplyScalar(2);
-          object.lookAt(sphereVector);
-          this.targets.sphere.push(object);
-        }
+        let object = new THREE.Object3D();
+        this.sphereSpherical.set(800, phi, theta);
+        object.position.setFromSpherical(this.sphereSpherical);
+        this.sphereVector.copy(object.position).multiplyScalar(2);
+        object.lookAt(this.sphereVector);
+        this.targets.sphere.push(object);
       },
       createHelixData() {
-        let helixVector = new THREE.Vector3();
-        let helixCylindrical = new THREE.Cylindrical();
-        for (let i = 0, l = this.wallTable.length; i < l; i++) {
-          let theta = i * 0.175 + Math.PI;
-          let y = -(i * 5) + 450;
+        let l = this.css3DObjects.length;
+        let i = l - 1;
+        let theta = i * 0.175 + Math.PI;
+        let y = -(i * 5) + 450;
 
-          let object = new THREE.Object3D();
+        let object = new THREE.Object3D();
 
-          // 参数一 圈的大小 参数二 左右间距 参数三 上下间距
-          helixCylindrical.set(900, theta, y);
+        // 参数一 圈的大小 参数二 左右间距 参数三 上下间距
+        this.helixCylindrical.set(900, theta, y);
 
-          object.position.setFromCylindrical(helixCylindrical);
+        object.position.setFromCylindrical(this.helixCylindrical);
 
-          helixVector.x = object.position.x * 2;
-          helixVector.y = object.position.y;
-          helixVector.z = object.position.z * 2;
+        this.helixVector.x = object.position.x * 2;
+        this.helixVector.y = object.position.y;
+        this.helixVector.z = object.position.z * 2;
 
-          object.lookAt(helixVector);
+        object.lookAt(this.helixVector);
 
-          this.targets.helix.push(object);
-        }
+        this.targets.helix.push(object);
       },
       createGridData() {
-        for (let i = 0; i < this.wallTable.length; i++) {
-          let object = new THREE.Object3D();
+        let l = this.css3DObjects.length;
+        let i = l - 1;
+        let object = new THREE.Object3D();
 
-          object.position.x = (i % 5) * 400 - 800; // 400 图片的左右间距  800 x轴中心店
-          object.position.y = -(Math.floor(i / 5) % 5) * 300 + 500; // 500 y轴中心店
-          object.position.z = Math.floor(i / 25) * 200 - 800; // 300调整 片间距 800z轴中心店
+        object.position.x = (i % 5) * 400 - 800; // 400 图片的左右间距  800 x轴中心店
+        object.position.y = -(Math.floor(i / 5) % 5) * 300 + 500; // 500 y轴中心店
+        object.position.z = Math.floor(i / 25) * 200 - 800; // 300调整 片间距 800z轴中心店
 
-          this.targets.grid.push(object);
-        }
+        this.targets.grid.push(object);
       },
       transform(targets, duration) {
         TWEEN.removeAll();
@@ -223,8 +216,35 @@
       render() {
         this.renderer.render(this.scene, this.camera);
       },
-      addItem() {
+      addItem(index) {
+        let element = document.createElement('div');
+        element.className = 'element';
+        element.style.backgroundColor = 'rgba(0, 127, 127,' + (Math.random() * 0.5 + 0.25) + ')';
 
+        let img = document.createElement('img');
+        img.src = this.wallTable[index].image;
+        element.appendChild(img);
+
+        let object3D = new THREE.CSS3DObject(element);
+        object3D.position.x = Math.random() * 4000 - 2000;
+        object3D.position.y = Math.random() * 4000 - 2000;
+        object3D.position.z = Math.random() * 4000 - 2000;
+        this.scene.add(object3D);
+        this.css3DObjects.push(object3D);
+
+        this.createTableData();
+        this.createSphereData();
+        this.createHelixData();
+        this.createGridData();
+      }
+    },
+    watch: {
+      newItem(newVal, oldVal) {
+        if (newVal !== null) {
+          setTimeout(() => {
+            this.newItem = null;
+          }, 5e3);
+        }
       }
     }
   };
@@ -238,18 +258,6 @@
   }
   a {
     color: #ffffff;
-  }
-
-  #info {
-    position: absolute;
-    width: 100%;
-    color: #ffffff;
-    padding: 5px;
-    font-family: Monospace;
-    font-size: 13px;
-    font-weight: bold;
-    text-align: center;
-    z-index: 1;
   }
 
   #menu {
