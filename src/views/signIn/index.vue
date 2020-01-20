@@ -30,6 +30,8 @@
   import BIMG from './img/b.png';
   import AIMG from './img/a.png';
 
+  const total = 100;
+
   export default {
     data() {
       return {
@@ -77,6 +79,9 @@
         this.personArray.push(this.newItem);
         this.addItem(this.wallTable.length - 1);
         console.log('----add----', this.wallTable.length);
+        setTimeout(() => {
+          this.newItem = null;
+        }, 5e3);
       }, 1e4);
     },
     methods: {
@@ -137,7 +142,7 @@
         this.targets.table.push(object);
       },
       createSphereData() {
-        let l = 80; // 总人数
+        let l = total; // 总人数
         let i = this.css3DObjects.length - 1;
         let phi = Math.acos(-1 + (2 * i) / l);
         let theta = Math.sqrt(l * Math.PI) * phi;
@@ -236,15 +241,6 @@
         this.createSphereData();
         this.createHelixData();
         this.createGridData();
-      }
-    },
-    watch: {
-      newItem(newVal, oldVal) {
-        if (newVal !== null) {
-          setTimeout(() => {
-            this.newItem = null;
-          }, 5e3);
-        }
       }
     }
   };
